@@ -134,6 +134,6 @@ def list_migrations(apps, database = DEFAULT_DB_ALIAS):
 def format_migration_list_item(migration, applied=True):
     if applied:
         return '  (*) %s' % migration.name()
-    elif migration.is_rebase:
+    elif migration.is_rebase():
         return '  (R) %s' % migration.name()
     return '  ( ) %s' % migration.name()

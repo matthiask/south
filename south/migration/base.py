@@ -407,13 +407,24 @@ class Migration(object):
                     new_plan.insert(0, item)
         return new_plan
 
-    def backwards_plan(self):
+    def backwards_plan(self, allow_rebase=False):
         """
         Returns a list of Migration objects to be unapplied, in order.
 
         This list includes `self`, which will be unapplied last.
         """
-        return depends(self, lambda x: x.dependents)
+        base_plan = depends(self, lambda x: x.dependents)
+        new_plan = []
+        for item in base_plan:
+            if allow_rebase:
+                new_plan.append(item)
+                if item.is_rebase():
+                    break
+            else:
+                if not item.is_rebase():
+                    new_plan.append(item)
+        return new_plan
+        
 
     def is_before(self, other):
         if self.migrations == other.migrations:

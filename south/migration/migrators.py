@@ -332,6 +332,10 @@ class Backwards(Migrator):
             else:
                 # Django 1.1 always goes down here
                 record.delete()
+        # If this is a rebase migration, delete all remaining records for
+        # this app, too.
+        if migration.is_rebase():
+            MigrationHistory.objects.filter(app_label = record.app_label).delete()
 
     def migrate_many(self, target, migrations, database):
         for migration in migrations:
