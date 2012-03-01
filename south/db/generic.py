@@ -14,7 +14,20 @@ from django.db.models.fields import NOT_PROVIDED
 from django.dispatch import dispatcher
 from django.conf import settings
 from django.utils.datastructures import SortedDict
-from django.utils.functional import cached_property
+try:
+    from django.utils.functional import cached_property
+except ImportError:
+   class cached_property(object):
+       """
+       Decorator that creates converts a method with a single
+       self argument into a property cached on the instance.
+       """
+       def __init__(self, func):
+           self.func = func
+
+       def __get__(self, instance, type):
+           res = instance.__dict__[self.func.__name__] = self.func(instance)
+           return res
 
 from south.logger import get_logger
 
@@ -80,10 +93,20 @@ class DatabaseOperations(object):
     allows_combined_alters = True
     supports_foreign_keys = True
     has_check_constraints = True
+
     @cached_property
     def has_ddl_transactions(self):
+        "Tests the database using feature detection to see if it has DDL transactional support"
         self._possibly_initialise()
         connection = self._get_connection()
+        # Django 1.3's MySQLdb backend doesn't raise DatabaseError
+        exceptions = (DatabaseError, )
+        try:
+            from MySQLdb import OperationalError
+            exceptions += (OperationalError, )
+        except ImportError:
+            pass
+        # Now do the test
         if connection.features.supports_transactions:
             cursor = connection.cursor()
             self.start_transaction()
@@ -91,7 +114,7 @@ class DatabaseOperations(object):
             self.rollback_transaction()
             try:
                 cursor.execute('CREATE TABLE DDL_TRANSACTION_TEST (X INT)')
-            except DatabaseError:
+            except exceptions:
                 return False
             else:
                 return True
